@@ -1,191 +1,428 @@
-Team: AI Hunters
-College: G. Pulla Reddy Engineering College
+# 🤖 AI HR Agent
 
-Team Members
+### Audit-Ready, Deterministic HR Automation Engine
 
-S. Mythili
+> **Hackathon Track 2 — AI HR Agent**
 
-T. Yaswanth
+**Team:** AI Hunters  
+**College:** G. Pulla Reddy Engineering College
 
-S. Rohan
+---
 
-T. Kartheek
+## 👥 Team Members
 
-Project Title
+- **S. Mythili**
+- **T. Yaswanth**
+- **S. Rohan**
+- **T. Kartheek**
 
-AI HR Agent — an audit-ready, deterministic HR automation engine for resume screening, interview scheduling, structured interview generation, leave management, and escalation handling.
+---
 
-Project Description (implementation summary)
+## 📌 Project Overview
 
-AI HR Agent converts raw resumes, job descriptions, availability windows, and leave requests into a fully auditable hiring pipeline that outputs the exact JSON required by the hackathon scoring system. Key capabilities implemented in code:
+**AI HR Agent** is an intelligent and audit-ready HR automation engine designed to automate key recruitment and employee-management workflows.
 
-Deterministic resume screening using a fixed-vocabulary TF-IDF pipeline combined with weighted skill matching and experience scoring. Every candidate receives an explainable score_breakdown.
+The system transforms **resumes, job descriptions, interview availability, leave requests, and HR queries** into structured and explainable decisions while maintaining a complete audit trail.
 
-Constraint-aware interview scheduling that respects business hours (10:00–17:30 IST), enforces a 10-minute buffer between interviews, matches expertise & interview type, and uses load-balanced selection with deterministic fallbacks.
+The primary goal is to reduce manual HR effort while ensuring that important decisions remain **deterministic, explainable, reproducible, and policy-compliant**.
 
-Interview question generation with an LLM-first path (Groq) and a deterministic template fallback, producing exactly 8 structured questions (3 technical, 2 behavioral, 2 situational, 1 candidate-specific) each with 4 measurable evaluation points.
+### Core capabilities
 
-Policy-first leave management that counts working days, enforces notice and consecutive-day limits, checks team capacity, and includes an advisory ML risk scorer (if model artifacts are present). Rule violations always override ML suggestions.
+- 📄 Resume screening and candidate ranking
+- 📅 Constraint-aware interview scheduling
+- 🧠 AI-powered structured interview question generation
+- 🏖️ Policy-based leave management
+- 🚨 HR query escalation and severity detection
+- 🔄 Finite State Machine (FSM) for candidate pipeline management
+- 📝 Audit logging and explainability
+- 📦 Standardized JSON output for automated evaluation
 
-Rule-based escalation detection with severity levels (high/medium/low) and urgent/distress detection.
+---
 
-A strict finite-state machine (FSM) controlling candidate transitions with audit logging, idempotency checks, and terminal-state protection.
+# 🏗️ System Architecture
 
-Final export_results() returns the exact hackathon JSON format.
+```text
+                    ┌─────────────────────┐
+                    │    Job Description  │
+                    └──────────┬──────────┘
+                               │
+                               ▼
+┌──────────────┐      ┌─────────────────────┐
+│   Resumes    │ ───► │ Resume Screening    │
+└──────────────┘      │ TF-IDF + Skills +   │
+                      │ Experience Scoring  │
+                      └──────────┬──────────┘
+                                 │
+                                 ▼
+                      ┌─────────────────────┐
+                      │ Candidate Ranking   │
+                      └──────────┬──────────┘
+                                 │
+                                 ▼
+                      ┌─────────────────────┐
+                      │ Candidate FSM       │
+                      │ Pipeline Management │
+                      └──────────┬──────────┘
+                                 │
+                  ┌──────────────┼──────────────┐
+                  ▼              ▼              ▼
+          ┌─────────────┐ ┌─────────────┐ ┌─────────────┐
+          │ Interview   │ │ Question    │ │ Leave       │
+          │ Scheduling  │ │ Generator   │ │ Management  │
+          └─────────────┘ └─────────────┘ └─────────────┘
+                  │              │              │
+                  └──────────────┼──────────────┘
+                                 ▼
+                       ┌──────────────────┐
+                       │ Audit & Results  │
+                       │    JSON Export   │
+                       └──────────────────┘
 
-Resume Screening Engine — Technical Details
+🚀 Key Features
+1. 📄 Deterministic Resume Screening
 
-The resume ranking system is deterministic, explainable, and tuned for reproducibility.
+The resume screening engine evaluates candidates against a Job Description using a deterministic scoring pipeline.
 
-TF-IDF + Semantic Matching
+Scoring Formula
+Final Score =
+    50% × Semantic Score
+  + 35% × Skill Score
+  + 15% × Experience Score
+Technology
+TF-IDF Vectorization
+Cosine Similarity
+Curated skill vocabulary
+Required/preferred skill weighting
+Experience-based scoring
+Required-skill coverage
+Explainable scoring breakdown
+TF-IDF Configuration
+max_features = 6000
+ngram_range = (1, 2)
+sublinear_tf = True
+norm = "l2"
 
-Fixed vocabulary derived from curated SKILL_MAP (no vocabulary drift).
+Required skills receive higher importance than preferred skills.
 
-max_features = 6000 (explicitly fixed).
+Required Skill  → 3 points
+Preferred Skill → 1 point
 
-n-gram range = (1, 2) (unigrams + bigrams).
+The system also applies experience and skill-coverage adjustments.
 
-sublinear_tf = True and norm = "l2".
+Explainability
 
-Vector comparison uses Cosine Similarity and cosine values are used directly (no min-max rescaling).
+Each candidate receives an internal score breakdown containing information such as:
 
-Scoring breakdown
+{
+  "semantic": 0.72,
+  "skill": 0.86,
+  "experience": 0.91,
+  "coverage": 1.0,
+  "bonuses": 0.12,
+  "penalties": 0.0
+}
 
-Semantic score (TF-IDF cosine) — 50% weight
+This makes candidate ranking easier to understand and audit.
 
-Weighted skill score — 35% weight (required skills = 3 pts, preferred = 1 pt)
+2. 📅 Constraint-Aware Interview Scheduling
 
-Experience score — 15% weight (ratio based, capped at 1.2 then normalized)
+The scheduling engine assigns interview slots while considering multiple constraints.
 
-Other features
-
-Required skills are boosted (JD skills repeated 3×) and echoed into resumes that already mention them to tighten semantic alignment.
-
-Two-stage sort: primary = required-skill coverage, secondary = final match score.
-
-Per-candidate score_breakdown (semantic_score, skill_score, experience_score, bonuses, penalties, final_score) for explainability.
-
-Interview Question Generator
-
-Primary: Groq LLaMA 3.3 — llama-3.3-70b-versatile (Groq integration used when GROQ_API_KEY is present).
-Fallback: Deterministic templates (offline safe).
-
-Generator guarantees:
-
-Exactly 8 structured questions (3 technical, 2 behavioral, 2 situational, 1 candidate-specific).
-
-Each question includes: question, type, category, difficulty and exactly 4 measurable evaluation_points.
-
-Strict JSON validation and auto-regeneration attempts for compliance.
-
-(Explicit model reference: Groq LLaMA 3.3, model id used: llama-3.3-70b-versatile.)
-
-Interview Scheduling System
-
-Constraint-aware deterministic scheduler:
-
-Business hours enforced: 10:00 — 17:30 IST
-
-Timezone aware (Asia/Kolkata) datetimes
-
+Scheduling constraints
+Business hours: 10:00 – 17:30 IST
+Asia/Kolkata timezone
+Interview duration
 10-minute buffer between interviews
+Interviewer expertise
+Interview type
+Interviewer workload
+Candidate availability
 
-Expertise/type matching and duration fitting
+The scheduler uses deterministic selection and fallback strategies to ensure reproducible results.
 
-Load-balanced interviewer selection (fewest bookings preferred)
+Load Balancing
 
-Stepwise deterministic fallbacks (including an earliest-available search)
+Interviewers with fewer existing bookings are preferred to distribute workload more evenly.
 
-Leave Management
+3. 🧠 AI Interview Question Generator
 
-Policy-first leave processing with robust checks:
+The system generates structured interview questions using an LLM-first architecture.
 
-Working-day counting (Mon–Fri)
+Primary AI Model
 
-Minimum notice and max consecutive day checks
+Groq + LLaMA 3.3
 
-Team capacity check (configurable max_leave_per_day)
+Model:
+llama-3.3-70b-versatile
 
-Overlap detection against approved leaves
+When a Groq API key is available, the LLM generates the questions.
 
-Optional ML advisory (RandomForest, random_state=42) that provides ml_confidence and risk_score — advisory only (rules take precedence)
+If the API is unavailable, the system automatically switches to a deterministic rule-based fallback.
 
-Escalation Handler
+Generated Structure
 
-Keyword and compound detection rules for severity:
+Exactly 8 questions are generated:
 
-HIGH / MEDIUM / LOW categories
+3 × Technical
+2 × Behavioral
+2 × Situational
+1 × Candidate-Specific
 
-Harassment + emotional distress → HIGH
+Each question contains:
 
-Urgency word detection for escalation prioritization
+{
+  "question": "...",
+  "type": "technical",
+  "category": "...",
+  "difficulty": "medium",
+  "evaluation_points": [
+    "...",
+    "...",
+    "...",
+    "..."
+  ]
+}
 
-Structured logging of escalations for audit
+Every question contains exactly 4 evaluation points.
 
-FSM Architecture (detailed)
+The generated response is validated before being accepted by the system.
 
-Finite State Machine drives pipeline correctness and auditability.
+4. 🏖️ Policy-First Leave Management
 
-States (PipelineStatus)
-applied → processing → shortlisted → interview_scheduled → interviewed → selected (terminal) / rejected (terminal)
+The leave management module evaluates employee leave requests against organizational policies.
 
-Allowed transitions (programmatically enforced)
+Policy checks
+Working-day calculation
+Available leave balance
+Minimum notice period
+Maximum consecutive leave
+Leave overlap
+Team capacity
+Documentation requirements
+Policy Priority
 
-applied → processing | rejected
+The system follows a policy-first approach.
 
-processing → shortlisted | rejected
+If an ML risk model is available, it provides only an advisory score.
+                 Leave Request
+                       │
+                       ▼
+                Policy Validation
+                       │
+              ┌────────┴────────┐
+              │                 │
+           Violations        No Violations
+              │                 │
+              ▼                 ▼
+           Reject           ML Advisory
+                                │
+                                ▼
+                             Decision
 
-shortlisted → interview_scheduled | rejected
+5. 🚨 HR Escalation Handler
 
-interview_scheduled → interviewed | rejected
+The escalation engine identifies HR queries that require human intervention.
 
-interviewed → selected | rejected
+Severity Levels
+Level	Examples
+🔴 HIGH	Harassment, discrimination, termination, legal issues
+🟠 MEDIUM	Compensation, salary revision, policy exceptions, transfers
+🟢 LOW	General complaints and feedback
 
-Preconditions & Guards
+The system also supports compound detection such as:
 
-Candidate must exist in pipeline before transitions.
+Harassment + Emotional Distress
+            ↓
+        HIGH Priority
 
-Terminal states (selected, rejected) are locked — no further changes.
+Escalation decisions are logged for auditability.
 
-Idempotent transitions (same → same) are rejected.
+6. 🔄 Finite State Machine (FSM)
 
-Whitelist enforcement prevents invalid jumps.
+The candidate hiring pipeline is controlled using a strict Finite State Machine.
 
-interview_scheduled requires a booked slot entry in _booked_slots.
+Pipeline
+APPLIED
+   ↓
+PROCESSING
+   ↓
+SHORTLISTED
+   ↓
+INTERVIEW_SCHEDULED
+   ↓
+INTERVIEWED
+   ↓
+SELECTED
 
-Every successful transition is recorded to audit_trail with timestamp & reason (enum-driven).
+or
 
-Auditability
+Any eligible stage
+       ↓
+    REJECTED
+Allowed Transitions
+APPLIED
+  ├── PROCESSING
+  └── REJECTED
 
-Audit entries include: candidate_id, from, to, timestamp (ISO), and reason.
+PROCESSING
+  ├── SHORTLISTED
+  └── REJECTED
 
-Allows judges/auditors to replay decision history and verify correctness.
+SHORTLISTED
+  ├── INTERVIEW_SCHEDULED
+  └── REJECTED
 
-Export / Hackathon Format
+INTERVIEW_SCHEDULED
+  ├── INTERVIEWED
+  └── REJECTED
 
-export_results() returns the exact required structure:
+INTERVIEWED
+  ├── SELECTED
+  └── REJECTED
+FSM Protections
+
+The system enforces:
+
+Candidate existence validation
+Valid transition whitelist
+Terminal-state protection
+Idempotency checks
+Interview booking preconditions
+Audit logging
+
+Terminal states:
+
+SELECTED
+REJECTED
+
+Once a candidate reaches a terminal state, further transitions are blocked.
+
+📝 Auditability
+
+Every successful FSM transition is recorded in an audit trail.
+
+Example:
+
+{
+  "candidate_id": "C001",
+  "from": "processing",
+  "to": "shortlisted",
+  "timestamp": "2026-09-10T10:30:00",
+  "reason": "auto_shortlisted"
+}
+
+This allows HR administrators and judges to:
+
+Trace candidate decisions
+Understand pipeline changes
+Replay decision history
+Verify system behavior
+Investigate unexpected transitions
+📦 Hackathon Output Format
+
+The system produces the exact JSON structure required by the hackathon scoring system.
 
 {
   "team_id": "AI_Hunters",
   "track": "track_2_hr_agent",
   "results": {
-    "resume_screening": {"ranked_candidates": [...], "scores": [...]},
-    "scheduling": {"interviews_scheduled": [...], "conflicts": [...]},
-    "questionnaire": {"questions": [...]},
-    "pipeline": {"candidates": {id: status}},
-    "leave_management": {"processed_requests": [...]},
-    "escalations": [...]
+    "resume_screening": {
+      "ranked_candidates": [],
+      "scores": []
+    },
+    "scheduling": {
+      "interviews_scheduled": [],
+      "conflicts": []
+    },
+    "questionnaire": {
+      "questions": []
+    },
+    "pipeline": {
+      "candidates": {}
+    },
+    "leave_management": {
+      "processed_requests": []
+    },
+    "escalations": []
   }
 }
-How to run (quick)
+🛠️ Tech Stack
+Technology	Purpose
+Python	Core application
+Scikit-learn	TF-IDF and cosine similarity
+NumPy	Numerical computation
+Pandas	Data processing
+Groq API	LLM integration
+LLaMA 3.3 70B	Interview question generation
+Joblib	ML model artifact handling
+Python Dataclasses	Structured data models
+Python Enum	FSM state management
+JSON	Standardized output
+Git / GitHub	Version control
+🎯 Design Principles
 
-Clone the repo.
+The project was designed around five major principles:
 
-(Optional) Create venv and install deps:
+1. Deterministic
 
-python -m venv venv
-source venv/bin/activate   # macOS / Linux
-venv\Scripts\activate      # Windows
-pip install -r requirements.txt
+The same input should produce reproducible decisions wherever rule-based processing is used.
 
-Dependencies (example): pandas, numpy, scikit-learn, joblib, groq (only if using Groq API).
+2. Explainable
+
+Candidate scores and pipeline transitions can be inspected and understood.
+
+3. Auditable
+
+Important actions are recorded with timestamps and transition reasons.
+
+4. Policy-First
+
+HR policy constraints take precedence over advisory ML predictions.
+
+5. Fault-Tolerant
+
+LLM-dependent functionality has deterministic fallback mechanisms.
+
+🌟 What Makes This Project Different?
+
+Traditional HR automation systems often depend heavily on opaque AI decisions.
+
+AI HR Agent takes a hybrid approach:
+
+             AI HR Agent
+                  │
+       ┌──────────┴──────────┐
+       │                     │
+   AI / ML Layer         Rule Layer
+       │                     │
+       ▼                     ▼
+   LLaMA 3.3            HR Policies
+   TF-IDF               FSM
+   ML Advisory          Scheduling Rules
+                         Escalation Rules
+       │                     │
+       └──────────┬──────────┘
+                  ▼
+        Explainable + Auditable
+             HR Decisions
+
+This provides the flexibility of AI while retaining the predictability and control required for HR workflows.
+
+🔮 Future Enhancements
+
+Potential future improvements include:
+
+🌐 Web-based HR dashboard
+👤 Role-based HR authentication
+📊 Candidate analytics dashboard
+📧 Automated email notifications
+📅 Google Calendar / Outlook integration
+🗄️ Database-backed candidate management
+📄 PDF/DOCX resume parsing
+🔍 Semantic embeddings for advanced resume matching
+🤖 AI-powered HR assistant for employee queries
+📈 Advanced recruitment analytics
+🔐 Enterprise-grade security and access control
+⭐ Keywords
+
+AI HR Automation Recruitment Resume Screening NLP TF-IDF Machine Learning LLM Groq LLaMA Interview Scheduling Leave Management FSM Candidate Pipeline Explainable AI Auditability Python Scikit-learn
