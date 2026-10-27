@@ -1,4 +1,4 @@
-# 🤖 AI HR Agent
+# 🤖 AI HR Automation Engine
 
 ### Audit-Ready, Deterministic HR Automation Engine
 
